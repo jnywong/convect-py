@@ -7,4 +7,3 @@ dependencies:
   - matplotlib
   - ipython
   - h5py
-prefix: /Users/wongj/opt/miniforge3/envs/env_convect

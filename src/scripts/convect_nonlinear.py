@@ -16,7 +16,7 @@ dt = 3e-6 # timestep size
 nt = 1e4 # no. of timesteps
 nout = 1e2 # save output every nout timesteps
 initOn = 1 # initialise run, otherwise load existing data
-saveDir = "/Users/wongj/Documents/work/convect-py-out/"+date_today # save directory
+saveDir = "/rds/projects/2017/edmondac-rescomp-software/wongj/convect-py/data/"+date_today # save directory
 
 # Vertical domain
 z, dz = zdomain(nz)
