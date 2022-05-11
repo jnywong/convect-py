@@ -13,10 +13,8 @@ a = 3 # L/D aspect ratio
 Ra = 1e6 # Rayleigh number
 Pr = 0.5 # Prandtl number
 dt = 3e-6 # timestep size
-# nt = 1e4 # no. of timesteps
-# nout = 1e2 # save output every nout timesteps
-nt = 10
-nout = 1
+nt = 1e4 # no. of timesteps
+nout = 1e2 # save output every nout timesteps
 initOn = 1 # initialise run, otherwise load existing data
 saveDir = "/Users/wongj/Documents/work/convect-py-out/"+date_today # save directory
 

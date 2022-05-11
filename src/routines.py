@@ -46,9 +46,9 @@ def preallocate_spat(nz, nx):
 
 def preallocate_spec(nz, nn):
     # Includes zeroth mode
-    psi = np.zeros((nz,nn,2))
-    tem = np.zeros((nz,nn,2))
-    omg = np.zeros((nz,nn,2))
+    psi = np.zeros((nz,nn+1,2))
+    tem = np.zeros((nz,nn+1,2))
+    omg = np.zeros((nz,nn+1,2))
     return psi, tem, omg 
 
 def initial_linear_tem(nz,nn,z,tem):
@@ -110,7 +110,8 @@ def adamsbashforth(n, y, dydt, dt):
 def diagnostics(m,nz,nout,time,tem,omg,psi):
     # track n=1 mode over time at z = nz/3
     index = int(np.round(nz/3))
-    print("time: {:.2f}    tem: {:.5e}    omg: {:.5e}    psi: {:.5e} \n ".format(time, np.log(abs(tem[index,2,1]))-np.log(abs(tem[index,2,0])), np.log(abs(omg[index,2,1]))-np.log(abs(omg[index,2,0])),np.log(abs(psi[index,2,1]))-np.log(abs(psi[index,2,0]))))
+    print("time: {:.2f}    tem: {:.5e}    omg: {:.5e}    psi: {:.5e} ".format(time, np.log(abs(tem[index,1,1]))-np.log(abs(tem[index,1,0])),
+        np.log(abs(omg[index,1,1]))-np.log(abs(omg[index,1,0])),np.log(abs(psi[index,1,1]))-np.log(abs(psi[index,1,0]))))
 
 def prepare(dtemdt, domgdt, tem, omg, psi):
     dtemdt[:,:,0] = dtemdt[:,:,1]
@@ -140,8 +141,8 @@ def linear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, initOn,
     
     m = 0
     time = 0
-    dtemdz2 = np.zeros(nz,nn)
-    domgdz2 = np.zeros(nz,nn)
+    dtemdz2 = np.zeros((nz,nn+1))
+    domgdz2 = np.zeros((nz,nn+1))
 
     while m<=nt:
         for k in range(1, nz-1): #k=2:1:nz-1 # loop over interior z
@@ -193,25 +194,25 @@ def nonlinear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, init
         time = 0
         dtemdt = np.zeros(tem.shape)
         domgdt = np.zeros(omg.shape)
-        tem = routines.initial_nonlinear_tem(nz,nn,z,tem)
+        tem = initial_nonlinear_tem(nz,nn,z,tem)
     elif initOn==0:
         nz,nn,a,Ra,Pr,dt,nt,nout = load_inputs(saveDir)
         time, ndata = load_outputs(saveDir)
         dtemdt, domgdt, tem, omg, psi = load_data(saveDir,ndata-1)
     
     m = 0
-    dtemdz1 = np.zeros((nz,nn))
-    domgdz1 = np.zeros((nz,nn)) 
-    dpsidz1 = np.zeros((nz,nn))
-    dtemdz2 = np.zeros((nz,nn))
-    domgdz2 = np.zeros((nz,nn))
+    dtemdz1 = np.zeros((nz,nn+1))
+    domgdz1 = np.zeros((nz,nn+1)) 
+    dpsidz1 = np.zeros((nz,nn+1))
+    dtemdz2 = np.zeros((nz,nn+1))
+    domgdz2 = np.zeros((nz,nn+1))
     while m<nt:
-        for k in range(1, nz-2): #k=2:1:nz-1
+        for k in range(1, nz-1): #k=2:1:nz-1 # loop over interior z
             # if k==33
             #     println("k:", k)
             # 
             # Linear terms
-            for n in range(0,nn): #n=1:1:nn+1
+            for n in range(0,nn+1): #n=1:1:nn+1
                 # print(k,n)
                 dtemdz1 = first_deriv(k ,n, dz, tem, dtemdz1)
                 domgdz1 = first_deriv(k ,n, dz, omg, domgdz1)
@@ -224,7 +225,7 @@ def nonlinear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, init
             # Nonlinear terms
             for n1 in range(1, nn): #n1=2:1:nn+1
                 # Zeroth mode
-                dtemdt[k,0,1] += -np.pi/(2*a)*n1*(dpsidz1[k,n1]*tem[k,n1,0]+psi[k,n1,1]*dtemdz1[k,n1])
+                dtemdt[k,0,1] += -np.pi/(2*a)*n1*(dpsidz1[k,n1]*tem[k,n1,1]+psi[k,n1,1]*dtemdz1[k,n1])
             
             for n in range(1,nn): #n=2:1:nn+1
                 # if n==3
@@ -242,14 +243,14 @@ def nonlinear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, init
                     n2[1] = n+n1
                     n2[2] = n1-n
                     for i in range(0,n2.size): #i=1:1:length(n2)
-                        # Check if 1<=n<=nn, no contribution if not
-                        if i==0 and n2[i]>=1 and n2[i]<=nn-1:
+                        # Check if 0<=n2<=nn-1, no contribution if not
+                        if i==0 and n2[i]>=0 and n2[i]<=nn-1:
                             tem_term[i] = -n1*dpsidz1[k,int(n2[i])]*tem[k,n1,1]+n2[i]*psi[k,int(n2[i]),1]*dtemdz1[k,n1]
                             omg_term[i] = -n1*dpsidz1[k,int(n2[i])]*omg[k,n1,1]+n2[i]*psi[k,int(n2[i]),1]*domgdz1[k,n1]
-                        elif i==1 and n2[i]>=1 and n2[i]<=nn-1:
+                        elif i==1 and n2[i]>=0 and n2[i]<=nn-1:
                             tem_term[i] = n1*dpsidz1[k,int(n2[i])]*tem[k,n1,1]+ n2[i]*psi[k,int(n2[i]),1]*dtemdz1[k,n1]
                             omg_term[i] = -n1*dpsidz1[k,int(n2[i])]*omg[k,n1,1]-n2[i]*psi[k,int(n2[i]),1]*domgdz1[k,n1]
-                        elif i==2 and n2[i]>=1 and n2[i]<=nn-1:
+                        elif i==2 and n2[i]>=0 and n2[i]<=nn-1:
                             tem_term[i] = n1*dpsidz1[k,int(n2[i])]*tem[k,n1,1]+n2[i]*psi[k,int(n2[i]),1]*dtemdz1[k,n1]
                             omg_term[i] = n1*dpsidz1[k,int(n2[i])]*omg[k,n1,1]+n2[i]*psi[k,int(n2[i]),1]*domgdz1[k,n1]
                         
@@ -261,7 +262,7 @@ def nonlinear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, init
         # display(dtemdt[33,:,:])
 
         # Update tem and omg using Adams Bashforth time integration
-        for n in range(0,nn): #n=1:1:nn+1
+        for n in range(0,nn+1): #n=1:1:nn+1
             tem = adamsbashforth(n, tem, dtemdt, dt)
             omg = adamsbashforth(n, omg, domgdt, dt)
         
@@ -300,15 +301,15 @@ def nonlinear_solver(z, dz, nz, nn, nt, nout, dt, a, Ra, Pr, psi, tem, omg, init
 
 def cosines(a, x, nn, nx):
     # Compute cosines and sines 
-    cosa = np.zeros(nn,nx)
-    for n in range(0,nn): #n=1:1:nn+1
+    cosa = np.zeros(nn+1,nx)
+    for n in range(0,nn+1): #n=1:1:nn+1
         cosa[n,:] = np.cos(n*np.pi*x/a)
     return cosa
 
 def sines(a, x, nn, nx):
     # Compute cosines and sines 
-    sina = np.zeros(nn,nx)
-    for n in range(0,nn): #n=1:1:nn+1
+    sina = np.zeros(nn+1,nx)
+    for n in range(0,nn+1): #n=1:1:nn+1
         sina[n,:] = np.sin(n*np.pi*x/a)
     return sina
 
@@ -316,7 +317,7 @@ def ict(nn,nx,nz,cosa,coeffs,outfun,zeroth=1):
     for i in range (0,nx-1): #i = 1:1:nx
         for k in range(0,nz-1): #k = 1:1:nz
             if zeroth==1: # include zeroth mode
-                for n in range(0,nn): #n=1:1:nn+1
+                for n in range(0,nn+1): #n=1:1:nn+1
                     outfun[k,i] += coeffs[k,n,1]*cosa[n,i]  
             elif zeroth==0: # exclude zeroth mode
                 for n in range(1,nn): #n=2:1:nn+1
@@ -326,6 +327,6 @@ def ict(nn,nx,nz,cosa,coeffs,outfun,zeroth=1):
 def ist(nn,nx,nz,sina,coeffs,outfun):
     for i in range(0, nx-1): #i = 1:1:nx
         for k in range(0, nz-1): #k = 1:1:nz
-            for n in range(0,nn): #n=1:1:nn+1
+            for n in range(0,nn+1): #n=1:1:nn+1
                 outfun[k,i] += coeffs[k,n,1]*sina[n,i]
     return outfun
