@@ -1,0 +1,10 @@
+name: env_convect
+channels:
+  - conda-forge
+dependencies:
+  - scipy
+  - numpy
+  - matplotlib
+  - ipython
+  - h5py
+prefix: /Users/wongj/opt/miniforge3/envs/env_convect
